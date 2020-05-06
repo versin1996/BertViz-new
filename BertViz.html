@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="en">
+<meta charset="utf-8">
+<head>
+    <script src="data/config.ini"></script>
+    <script src="data/matrix.json"></script>
+    <script src="d3.js" charset="utf-8"></script>
+    <script src="requirejs.js"></script>
+    <script src="head_view.js"></script>
+</head>
+
+<body>
+    <div id="console" style="background: lightyellow; z-index: 9999; height: 20px">
+        <span style="user-select:none; vertical-align: top;" >&nbsp&nbsp&nbsp&nbspLayer: <select id="layer"></select></span>
+        <button style="user-select:none; vertical-align: top;" id="button_down">向下</button>
+        <button style="user-select:none; vertical-align: top;" id="button_right">向右</button>
+        <span style="user-select:none; vertical-align: top;" id="mode">局部模式: </span>
+        <button style="user-select:none; vertical-align: top;" id="button_change">切换</button>
+        <button style="user-select:none; vertical-align: top;" id="button_all">全选</button>
+        <button style="user-select:none; vertical-align: top;" id="button_inverse">反选</button>
+        <button style="user-select:none; vertical-align: top;" id="button_token_type">显示类型</button>
+    </div>
+    <div id='vis'></div>
+</body>
+
+</html>
