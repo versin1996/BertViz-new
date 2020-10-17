@@ -10,41 +10,39 @@
  * 12/19/18  Jesse Vig   Assorted cleanup. Changed orientation of attention matrices.
  */
 
-requirejs(['jquery', 'd3'], function($, d3) {
-
+requirejs(["jquery", "d3"], function($, d3) {
     const TEXT_SIZE = 5;
     const BOXWIDTH = TEXT_SIZE * 8;
     const BOXHEIGHT = TEXT_SIZE * 1.5;
     const HEIGHT_PADDING = 20;
     const WIDTH = 1200;
-    const HEIGHT = 800 * BOXHEIGHT * 2 + HEIGHT_PADDING;
+    const HEIGHT = 600 * BOXHEIGHT * 2 + HEIGHT_PADDING;
     const MATRIX_WIDTH = 150;
     const CHECKBOX_SIZE = 20;
     const HEAD_COLORS = d3.scale.category10();
-    const TOKEN_COLORS = d3.scale.category10();
     var HEAD_COLORS_ARR = [];
-    var TOKEN_COLORS_ARR = [];
     
     var nHeads;
     var headVis = null;
-    var tokenVis = new Array(4).fill(true);
 
     var text;
     var attn;
     var layer = 0;
-    var browseMode = 0;
-    var token_type_display_flag = false;
-    var dir = "http://127.0.0.1:8080/Desktop/BertViz/data/"
-
+    var rank = 0;
+    var ranks = config["ranks"];
+    var book_dir = config["dir"];
+    var filenames = config["filenames"];
+    console.log(filenames);
     function loadJson(layer, type) {
         var request = new XMLHttpRequest();
         if(type == "text")
         {
-            request.open("get", dir + "text.json");
+            request.open("get", book_dir + filenames[layer] + ".json");
         }    
         else if(type == "attn")
         {
-            request.open("get", dir + "layer_" + layer + ".json");
+            request.open("get", book_dir + filenames[layer] + ".json");
+            console.log(filenames[layer])
         }
         request.send(null);
         request.onload = function() {
@@ -59,17 +57,14 @@ requirejs(['jquery', 'd3'], function($, d3) {
                     nHeads = attn.index.length;
                     if(!headVis)
                     {
-                        headVis = new Array(nHeads).fill(true);
+                        headVis = new Array(nHeads).fill(false);
+                        headVis[0] = true;
                     }
-                    drawCheckboxes(0, d3.select("#vis").select("svg"), nHeads);
                     render()
-                    if(browseMode == 1)
+                    var svg = d3.select("#vis").select("svg");
+                    for(var i=0; i<text.length; i++)
                     {
-                        var svg = d3.select("#vis").select("svg");
-                        for(var i=0; i<text.length; i++)
-                        {
-                            drawLine(svg, i, true);
-                        }
+                        drawLine(svg, i, true);
                     }
                 }                   
             }
@@ -102,17 +97,6 @@ requirejs(['jquery', 'd3'], function($, d3) {
                         var x2 = isLeft ? BOXWIDTH + MATRIX_WIDTH : BOXWIDTH;
                         var y2 = BOXHEIGHT * (attn.index[j][index][i] + 1) + BOXHEIGHT / 2 + HEIGHT_PADDING;
                         var color = HEAD_COLORS(j);
-                        if(token_type_display_flag){
-                            var color_index = matrix['matrix'][index][attn.index[j][index][i]][0];
-                            if(tokenVis[color_index])
-                            {
-                            	var color = TOKEN_COLORS_ARR[color_index];
-                            }
-                            else
-                            {
-                            	continue;
-                            }       
-                        } 
                         drawLineCore(svg, x1, y1, x2, y2, j, color, attn.data[j][index][i]);
                     }
                 }
@@ -141,17 +125,6 @@ requirejs(['jquery', 'd3'], function($, d3) {
                 var x2 = BOXWIDTH + MATRIX_WIDTH;
                 var y2 = BOXHEIGHT * (attn.index[head][index][i] + 1) + BOXHEIGHT / 2 + HEIGHT_PADDING;
                 var color = HEAD_COLORS(head);
-                if(token_type_display_flag){
-                    var color_index = matrix['matrix'][index][attn.index[head][index][i]][0];
-                 	if(tokenVis[color_index])
-                    {
-                    	var color = TOKEN_COLORS_ARR[color_index];
-                    }
-                    else
-                    {
-                    	continue;
-                    }  
-                }
                 drawLineCore(svg, x1, y1, x2, y2, head, color, attn.data[head][index][i]);
             }
         }      
@@ -186,6 +159,7 @@ requirejs(['jquery', 'd3'], function($, d3) {
     function render() {
         $("#vis svg").empty();
         $("#vis").empty();
+
         console.log(attn);
 
         var svg = d3.select("#vis")
@@ -193,19 +167,10 @@ requirejs(['jquery', 'd3'], function($, d3) {
             .attr("width", WIDTH)
             .attr("height", HEIGHT)
             .style("position", "absolute")
-            .style("margin-top", "60px")
+            .style("margin-top", "10px")
             
         renderText(svg, text, attn, true, 0);
         renderText(svg, text, attn, false, MATRIX_WIDTH + BOXWIDTH);
-
-        d3.select("#vis")
-            .append('div')
-            .attr('id', '5201314')
-            .style("float", "left")
-            .style("position", "absolute")
-            .style("left", "400px")
-            .style("top", "50px")
-            .style("position", "fixed");
     }
 
     function renderText(svg, text, attn, isLeft, leftPos) {
@@ -245,7 +210,6 @@ requirejs(['jquery', 'd3'], function($, d3) {
 
         var amplification;
         tokenContainer.on("mouseover", function(d, index) { //onmouseover
-            //console.log(index)
             amplification = document.getElementById('amplification');
             if(!amplification)
             {
@@ -266,39 +230,7 @@ requirejs(['jquery', 'd3'], function($, d3) {
                 amplification.innerHTML = this.innerHTML;
                 amplification.style.left = event.offsetX+'px';
                 amplification.style.top = (event.offsetY - 20)+'px';
-            }
-            if(browseMode == 0)
-            {
-                drawLine(svg, index, isLeft);
-                var attention = getAttention(index, isLeft);
-
-                $("#5201314").empty();
-                var oContext = document.getElementById('5201314');
-                for(var i=0; i<attention.length; i++)
-                {
-                    var word = document.createElement("div");
-                    if(attention[i][1] == "fillDot")
-                    {
-                        word.innerHTML = '<h2>' + text[attention[i][0]] + ' ......&nbsp</h2>';
-                    }
-                    else
-                    {
-                        word.innerHTML = '<h2>' + text[attention[i][0]] + '&nbsp</h2>';
-                    }
-                    word.setAttribute('id', 'word' + i);              
-                    word.style.display = "inline-block";
-                    word.style.opacity = attention[i][2] > 0.08 ? attention[i][2] : 0.08;//; //degree
-                    if(index == attention[i][0])
-                    {
-                        word.style.fontSize = "25px";
-                    }
-                    if(attention[i][1] != "fill" && attention[i][1] != "fillDot")
-                    {
-                        word.style.color = HEAD_COLORS_ARR[attention[i][1]];
-                    }
-                    oContext.appendChild(word); 
-                }
-            } //局部模式   
+            } 
         });
 
         textContainer.on("mouseout", function() {
@@ -307,10 +239,6 @@ requirejs(['jquery', 'd3'], function($, d3) {
             {
                 amplification.parentNode.removeChild(amplification);
             }
-            if(browseMode == 0)
-            {    
-                removeLine();
-            } //局部模式 
         });
     }
 
@@ -428,184 +356,6 @@ requirejs(['jquery', 'd3'], function($, d3) {
                 var color = d ? headColor : lighten(headColor);
                 return color;
             });
-
-        if(token_type_display_flag)
-        {
-            tokenCheckboxContainer.selectAll("rect")
-                .data(tokenVis)
-                .attr("fill", function(d, i) {
-                    var tokenColor = TOKEN_COLORS(i);
-                    var color = d ? tokenColor : lighten(tokenColor);
-                    return color;
-                });
-        }
-        else
-        {
-            tokenCheckboxContainer.selectAll("rect")
-                .data(tokenVis)
-                .attr("fill", function(d, i) {
-                    return toGrey();
-                });
-        }
-    }
-
-    function drawCheckboxes(top, svg, nHeads) {
-        $("#console g").empty();
-        $("#console g").remove();
-        HEAD_COLORS_ARR = [];
-        TOKEN_COLORS_ARR = [];
-        var checkboxContainer = d3.select("#console")
-            .append("g")
-            .append("g")
-            .append("svg")
-            .style("top", "0px")
-            .style("width", "500px")
-            .style("height", "25px")
-            .append("g")
-            .attr("id", "checkboxContainer");
-        var checkbox = checkboxContainer
-            .selectAll("rect")
-            .data(headVis)
-            .enter()
-            .append("rect")
-            .attr("id", "checkbox")
-            .attr("fill", function(d, i) {
-                HEAD_COLORS_ARR.push(HEAD_COLORS(i));
-                return HEAD_COLORS(i);
-            })
-            .attr("x", function(d, i) {
-                return (i + 1) * CHECKBOX_SIZE;
-            })
-            .attr("y", top)
-            .attr("width", CHECKBOX_SIZE)
-            .attr("height", CHECKBOX_SIZE);
-
-        var tokenCheckboxContainer = d3.select("#console")
-            .select("g")
-            .append("g")
-            .append("svg")
-            .style("left", "400px")
-            .style("top", "0px")
-            .style("width", "500px")
-            .style("height", "25px")
-            .attr("id", "tokenCheckboxContainer");
-
-        var tokenCheckbox = tokenCheckboxContainer
-            .selectAll("rect")
-            .data(tokenVis)
-            .enter()
-            .append("rect")
-            .attr("id", "tokenCheckbox")
-            .attr("fill", function(d, i) {
-                TOKEN_COLORS_ARR.push(TOKEN_COLORS(i));
-                return lighten(TOKEN_COLORS(i));
-            })
-            .attr("x", function(d, i) {
-                return (i + 1) * CHECKBOX_SIZE;
-            })
-            .attr("y", top)
-            .attr("width", CHECKBOX_SIZE)
-            .attr("height", CHECKBOX_SIZE);
-
-        // var token_id = tokenCheckboxContainer
-        //     .selectAll("text")
-        //     .data(tokenVis)
-        //     .enter()
-        //     .append("text")
-        //     .text(function(d, i) {
-        //         return i;      
-        //     })
-        //     .attr("x", function(d, i) {
-        //         return (i + 1) * CHECKBOX_SIZE;
-        //     })
-        //     .attr("y", top)
-        //     .attr("width", CHECKBOX_SIZE)
-        //     .attr("height", CHECKBOX_SIZE)
-        //     .attr("font-size", "10px")
-        //     .style("cursor", "default")
-        //     .style("-webkit-user-select", "none")
-        //     .attr("dx", 5)
-        //     .attr("dy", 2);
-
-        //HEAD_COLORS_ARR.push("#ff052f");
-
-        updateCheckboxes();
-
-        var clickTimeId;
-        checkbox.on("click", function(d, i) {
-        	if(!token_type_display_flag)
-        	{
-        		clearTimeout(clickTimeId);
-	            clickTimeId = setTimeout(function() {
-	                if(headVis[i])
-	                {
-	                    removeLine(i);
-	                }
-	                else
-	                {
-	                    if(browseMode == 1)
-	                    {
-	                        var svg = d3.select("#vis").select("svg");
-	                        drawLineSingleHead(svg, i);
-	                    }     
-	                }
-	                headVis[i] = !headVis[i];       
-	                updateCheckboxes();
-	            }, 250);  
-        	}   
-        });
-
-        checkbox.on("dblclick", function(d, i) {
-            clearTimeout(clickTimeId);
-            clickTimeId = setTimeout(function() {
-                for(var j=0; j<nHeads; j++)
-                {
-                    headVis[j] = false;
-                }
-                headVis[i] = true;
-                if(browseMode == 1)
-                {
-                    removeLine();
-                    var svg = d3.select("#vis").select("svg");
-                    drawLineSingleHead(svg, i);
-                }
-                updateCheckboxes();
-            }, 250);   
-        });
-        
-
-        
-        tokenCheckbox.on("click", function(d, i) {
-            if(token_type_display_flag)
-            {
-                clearTimeout(clickTimeId);
-                clickTimeId = setTimeout(function() {
-                    tokenVis[i] = !tokenVis[i]; 
-                    removeLine();  
-                    var svg = d3.select("#vis").select("svg");
-    				drawLineSingleHead(svg, getSingleActiveHeads()); 
-                    updateCheckboxes();
-                }, 250);  
-            }
-        });
-
-        tokenCheckbox.on("dblclick", function(d, i) {
-            if(token_type_display_flag)
-            {
-                clearTimeout(clickTimeId);
-                clickTimeId = setTimeout(function() {
-                    for(var j=0; j<tokenVis.length; j++)
-                    {
-                        tokenVis[j] = false;
-                    }
-                    tokenVis[i] = true;
-                    removeLine();
-                    var svg = d3.select("#vis").select("svg");
-    				drawLineSingleHead(svg, getSingleActiveHeads());
-                    updateCheckboxes();
-                }, 250);   
-            }
-        });
     }
 
     function getActiveHeads() {
@@ -632,136 +382,74 @@ requirejs(['jquery', 'd3'], function($, d3) {
         return index;
     }
 
-    function downword() {
-        layer = (Number(layer) + 1) % nLayers;
-        document.getElementById("layer").selectedIndex = layer; 
+    function toNextBook() {
+        layer = (Number(layer) + 1) % filenames.length;
         removeLine();
-        loadJson(layer, "attn");
+        initial();
+        document.getElementById("book").selectedIndex = layer; 
     }
 
-    function rightword() {
-        if(browseMode == 1)
+    function toNextHead() {
+        rank = (rank + 1) % ranks.length;
+        document.getElementById("head").selectedIndex = rank;
+        var index;
+        for(var i=0; i<nHeads; i++)
         {
-            var index;
-            for(var i=0; i<nHeads; i++)
+            if(headVis[i])
             {
-                if(headVis[i])
-                {
-                    index = (i + 1) % nHeads;
-                }
+                index = (i + 1) % nHeads;
             }
+        }
+        for(var i=0; i<headVis.length; i++)
+        {
+            headVis[i] = false;
+        }
+        headVis[index] = true; 
+        updateCheckboxes();  
+        var svg = d3.select("#vis").select("svg");
+        removeLine();
+        drawLineSingleHead(svg, index); 
+    }
+    $("#head").on('change', function(e) {
+            rank = e.currentTarget.value;
+            removeLine();
             for(var i=0; i<headVis.length; i++)
             {
                 headVis[i] = false;
             }
-            headVis[index] = true; 
+            headVis[rank] = true; 
             updateCheckboxes();  
             var svg = d3.select("#vis").select("svg");
             removeLine();
-            drawLineSingleHead(svg, index);
-        }   
-    }
+            drawLineSingleHead(svg, rank);
+            document.getElementById("head").selectedIndex = rank;
+        });
 
-    function changeMode() {
-        d3.select("#mode").text(browseMode ? "局部模式:": "全局模式:");
-        browseMode = !browseMode;    
-        if(browseMode == 1)
-        {
-            $("#5201314").empty();
-            var svg = d3.select("#vis").select("svg");
-            for(var i=0; i<text.length; i++)
-            {
-                drawLine(svg, i, true);
-            }
-        }
-        if(browseMode == 0)
-        {
-            removeLine();
-        }
-    }
-
-    function allSelect() {
-        for(var i=0; i<headVis.length; i++)
-        {
-            headVis[i] = true;
-        }
-        updateCheckboxes();
-        removeLine();
-        if(browseMode == 1)
-        {
-            var svg = d3.select("#vis").select("svg");
-            for(var i=0; i<text.length; i++)
-            {
-                drawLine(svg, i, true);
-            }
-        }
-    }
-
-    function inverseSelect() {
-        for(var i=0; i<headVis.length; i++)
-        {
-            headVis[i] = !headVis[i];
-        }
-        updateCheckboxes();
-        removeLine();
-        if(browseMode == 1)
-        {
-            var svg = d3.select("#vis").select("svg");
-            for(var i=0; i<text.length; i++)
-            {
-                drawLine(svg, i, true);
-            }
-        }
-    }
-
-    function token_type_display() {
-        if(getActiveHeads() == 1 && browseMode == 1)
-        {
-            token_type_display_flag = !token_type_display_flag;
-            d3.select("#button_token_type").text(token_type_display_flag ? "隐藏类型": "显示类型");
-            updateCheckboxes();
-            removeLine();
-            var svg = d3.select("#vis").select("svg");
-    		drawLineSingleHead(svg, getSingleActiveHeads());    
-        }  
-    }
-
-    function initial() {
-        var oConsole = document.getElementById('console');
-        oConsole.style.position = "fixed";
-        oConsole.style.width = "520px";
-        oConsole.style.height = "80px";
-        oConsole.style.top = "0px";
-        $("#layer").empty();
-        for (var i = 0; i < nLayers; i++) {
-            $("#layer").append($("<option />").val(i).text(i));
-        }
-
-        $("#layer").on('change', function(e) {
+    $("#book").on('change', function(e) {
             layer = e.currentTarget.value;
             removeLine();
-            loadJson(layer, "attn");
-            //updateCheckboxes();
-            var svg = d3.select("#vis").select("svg");
-            if(browseMode == 1)
-            {
-                for(var i=0; i<nHeads; i++)
-                {  
-                    if(headVis[i])
-                    {
-                        drawLineSingleHead(svg, i);
-                    }
-                }
-            }
+            initial();
+            document.getElementById("book").selectedIndex = layer;
         });
-        loadJson(null, "text");
-        loadJson(layer, "attn");
-        d3.select("#button_down").on("click", downword); 
-        d3.select("#button_right").on("click", rightword);   
-        d3.select("#button_change").on("click", changeMode);    
-        d3.select("#button_all").on("click", allSelect); 
-        d3.select("#button_inverse").on("click", inverseSelect); 
-        d3.select("#button_token_type").on("click", token_type_display); 
+
+    function initial() {
+        d3.select("#panel")
+            .style("position","fixed")
+            .style("width","570px")
+            .style("height","30px")
+            .style("top","0px")
+        $("#head").empty();
+        for (var i = 0; i < ranks.length; i++) {
+            $("#head").append($("<option />").val(i).text(i + " - " + ranks[i]));
+        }
+        $("#book").empty();
+        for (var i = 0; i < filenames.length; i++) {
+            $("#book").append($("<option />").val(i).text(filenames[i]));
+        }
+        loadJson(layer, "text");
+        loadJson(layer, "attn");  
+        d3.select("#button_next_book").on("click", toNextBook); 
+        d3.select("#button_next_head").on("click", toNextHead);
     }
 
     initial();
